@@ -179,4 +179,5 @@ public class KafkaTemplateTests {
                 .withMessageContaining("'producer' must not be null for flushing.");
     }
 
+
 }

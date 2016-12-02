@@ -4,6 +4,7 @@ import com.test.KafkaListener;
 import com.test.Person;
 import com.test.serializers.KafkaJsonDeserializer;
 import com.test.serializers.KafkaJsonSerializer;
+import com.test.serializers.MyKafkaConsumerFactory;
 import kafka.message.ExchangeMessage;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -13,16 +14,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Scope;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.config.ContainerProperties;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 @SpringBootApplication
 public class Application implements CommandLineRunner {
@@ -44,7 +48,9 @@ public class Application implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        for (int i = 0; i < 3; i++) {
+        long start = System.currentTimeMillis();
+        logger.info(start + " start");
+        for (int i = 0; i < 20000; i++) {
             ExchangeMessage.Order order = ExchangeMessage.Order.newBuilder().setOid("xxx" + String.valueOf(1)).build();
             kafkaTemplate.send("topic1", "0", new Person("zs", 11, order.toByteArray()));
 //            kafkaTemplate.send("topic2", "1", "bar");
@@ -52,6 +58,9 @@ public class Application implements CommandLineRunner {
 //            kafkaTemplate.send("topic2", "3", "qux");
             // kafkaTemplate.flush();
         }
+        long end = System.currentTimeMillis();
+        logger.info(end + " end,end-start=" + (end - start) + "ms");
+
     }
 
     public static void main(String[] args) throws Exception {
@@ -101,7 +110,7 @@ public class Application implements CommandLineRunner {
         });*/
         //containerProps.setAckOnError(false);
         ConcurrentMessageListenerContainer<String, Object> container = new ConcurrentMessageListenerContainer<>(consumerFactory(), containerProps);
-        container.setConcurrency(3);
+        container.setConcurrency(2);
         container.getContainerProperties().setPollTimeout(300);
         return container;
     }
@@ -119,6 +128,11 @@ public class Application implements CommandLineRunner {
 
     @Bean
     public ConsumerFactory<String, Object> consumerFactory() {
+        Map<String, Object> props = getConsumerConfig();
+        return new MyKafkaConsumerFactory<>(props);
+    }
+
+    public Map<String, Object> getConsumerConfig() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, this.brokerAddress);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "siTestGroup");
@@ -131,10 +145,8 @@ public class Application implements CommandLineRunner {
 //        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
 //        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaJsonDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaJsonDeserializer.class);
-
-        return new DefaultKafkaConsumerFactory<>(props);
-
-
+        props.put(ConsumerConfig.CLIENT_ID_CONFIG,"consumer-id-"+ new Random().nextInt());
+        return props;
     }
 
 }
